@@ -6,25 +6,8 @@ public class Constants {
     }
 
     // Auth
-    public static final String DOT_SEPARATOR = ".";
-    public static final String SHA_256_WITH_RSA = "SHA256withRSA";
-    public static final String UNAUTHORIZED = "Unauthorized";
-    public static final String SUB = "sub";
-    public static final String SSO_URL = "sso.url";
-    public static final String SSO_REALM = "sso.realm";
-    public static final String ACCESS_TOKEN_PUBLICKEY_BASEPATH = "accesstoken.publickey.basepath";
     public static final String X_AUTH_TOKEN = "x-authenticated-user-token";
     public static final String INVALID_AUTH_TOKEN = "Invalid auth token. Please supply a valid auth token";
-
-    // Cassandra connection (read via PropertiesCache from cassandra.config.properties/application.properties)
-    public static final String CASSANDRA_CONFIG_HOST = "cassandra.config.host";
-    public static final String CORE_CONNECTIONS_PER_HOST_FOR_LOCAL = "coreConnectionsPerHostForLocal";
-    public static final String CORE_CONNECTIONS_PER_HOST_FOR_REMOTE = "coreConnectionsPerHostForRemote";
-    public static final String HEARTBEAT_INTERVAL = "heartbeatIntervalSeconds";
-    public static final String SUNBIRD_CASSANDRA_CONSISTENCY_LEVEL = "sunbird_cassandra_consistency_level";
-    public static final String DEFAULT_SUNBIRD_CASSANDRA_CONSISTENCY_LEVEL = "ONE";
-    public static final String LOCAL_DATACENTER = "datacenter1";
-    public static final String ERROR = "ERROR";
 
     // Keyspace / table
     public static final String KEYSPACE_SUNBIRD = "sunbird";
@@ -71,15 +54,6 @@ public class Constants {
     public static final String RESOURCE_TYPE = "resourceType";
     public static final String RESOURCE_TYPE_COURSE = "COURSE";
     public static final String TRACE_ID = "traceId";
-
-    // CassandraOperation / CassandraUtil query-building tokens
-    public static final String INSERT_INTO = "INSERT INTO ";
-    public static final String OPEN_BRACE = "(";
-    public static final String VALUES_WITH_BRACE = ") VALUES (";
-    public static final String QUE_MARK = "?";
-    public static final String COMMA = ",";
-    public static final String CLOSING_BRACE = ");";
-    public static final String SEMICOLON = ";";
 
     // ApiResponse / CassandraOperation result keys
     public static final String RESPONSE = "response";

@@ -52,11 +52,11 @@
 			<version>4.5.0</version>
 		</dependency>
 
-		<!-- Authentication (Keycloak-issued JWT verification) -->
+		<!-- Authentication (JWT verification, key management) -->
 		<dependency>
-			<groupId>org.keycloak</groupId>
-			<artifactId>keycloak-common</artifactId>
-			<version>18.0.0</version>
+			<groupId>net.karmayogibharat</groupId>
+			<artifactId>common-util</artifactId>
+			<version>1.0.3</version>
 		</dependency>
 
 		<!-- Cassandra persistence (Map-based CassandraOperation, no ORM) -->

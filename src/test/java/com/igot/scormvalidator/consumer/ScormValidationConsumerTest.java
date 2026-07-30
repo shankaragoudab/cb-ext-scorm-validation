@@ -1,9 +1,8 @@
 package com.igot.scormvalidator.consumer;
 
-import com.igot.scormvalidator.transactional.cassandrautils.CassandraOperation;
-import com.igot.scormvalidator.util.ApiResponse;
 import com.igot.scormvalidator.util.Constants;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.igot.common.cassandra.CassandraOperation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -11,6 +10,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -98,8 +98,8 @@ class ScormValidationConsumerTest {
         assertEquals("cassandra down", updates.get(1).get(Constants.ERROR_REASON));
     }
 
-    private ApiResponse successResponse() {
-        ApiResponse response = new ApiResponse();
+    private Map<String, Object> successResponse() {
+        Map<String, Object> response = new HashMap<>();
         response.put(Constants.RESPONSE, Constants.SUCCESS);
         return response;
     }

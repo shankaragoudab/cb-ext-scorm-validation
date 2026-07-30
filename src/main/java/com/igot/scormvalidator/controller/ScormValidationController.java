@@ -25,7 +25,7 @@ public class ScormValidationController {
     @PostMapping("/validate")
     public ResponseEntity<ApiResponse> validateScormContent(
             @RequestBody Map<String, Object> request,
-            @RequestHeader(Constants.X_AUTH_TOKEN) String userAuthToken) {
+            @RequestHeader(name = Constants.X_AUTH_TOKEN, required = true) String userAuthToken) {
         ApiResponse response = scormValidationService.initiateValidation(request, userAuthToken);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
@@ -33,7 +33,7 @@ public class ScormValidationController {
     @GetMapping("/getvalidationStatus/{resourceId}")
     public ResponseEntity<ApiResponse> getValidationStatus(
             @PathVariable String resourceId,
-            @RequestHeader(Constants.X_AUTH_TOKEN) String userAuthToken) {
+            @RequestHeader(name = Constants.X_AUTH_TOKEN, required = true) String userAuthToken) {
         ApiResponse response = scormValidationService.getValidationStatus(resourceId, userAuthToken);
         return new ResponseEntity<>(response, response.getResponseCode());
     }

@@ -1,10 +1,8 @@
 package com.igot.scormvalidator.service.impl;
 
-import com.igot.scormvalidator.authentication.util.AccessTokenValidator;
 import com.igot.scormvalidator.content.ContentInfoService;
 import com.igot.scormvalidator.producer.Producer;
 import com.igot.scormvalidator.service.ScormValidationService;
-import com.igot.scormvalidator.transactional.cassandrautils.CassandraOperation;
 import com.igot.scormvalidator.util.ApiResponse;
 import com.igot.scormvalidator.util.Constants;
 import com.igot.scormvalidator.util.ProjectUtil;
@@ -12,12 +10,14 @@ import com.igot.scormvalidator.util.ScormValidatorServerProperties;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.igot.common.auth.AccessTokenValidator;
+import org.igot.common.cassandra.CassandraOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,7 +65,7 @@ public class ScormValidationServiceImpl implements ScormValidationService {
         String fileName = extractFileName(artifactUrl);
 
         String validationId = UUID.randomUUID().toString();
-        Timestamp now = new Timestamp(System.currentTimeMillis());
+        String now = Instant.now().toString();
 
         Map<String, Object> trackingRecord = new HashMap<>();
         trackingRecord.put(Constants.VALIDATION_ID, validationId);
@@ -79,7 +79,7 @@ public class ScormValidationServiceImpl implements ScormValidationService {
         trackingRecord.put(Constants.UPDATED_AT, now);
         trackingRecord.put(Constants.RETRY_COUNT, 0);
 
-        ApiResponse insertResponse = cassandraOperation.insertRecord(
+        org.igot.common.ApiResponse insertResponse = (org.igot.common.ApiResponse) cassandraOperation.insertRecord(
                 Constants.KEYSPACE_SUNBIRD, Constants.TABLE_SCORM_VALIDATION_STATUS, trackingRecord);
         if (!Constants.SUCCESS.equalsIgnoreCase((String) insertResponse.get(Constants.RESPONSE))) {
             ProjectUtil.errorResponse(response, "Failed to persist SCORM validation record", HttpStatus.INTERNAL_SERVER_ERROR);
@@ -92,7 +92,7 @@ public class ScormValidationServiceImpl implements ScormValidationService {
         response.put(Constants.VALIDATION_ID, validationId);
         response.put(Constants.STATUS, Constants.STATUS_STARTED);
         response.put(Constants.RESOURCE_ID, resourceId);
-        response.put(Constants.CREATED_AT, now.toString());
+        response.put(Constants.CREATED_AT, now);
         return response;
     }
 
@@ -126,7 +126,7 @@ public class ScormValidationServiceImpl implements ScormValidationService {
 
         Map<String, Object> keyMap = new HashMap<>();
         keyMap.put(Constants.RESOURCE_ID, resourceId);
-        List<Map<String, Object>> records = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        List<Map<String, Object>> records = cassandraOperation.getRecordsByProperties(
                 Constants.KEYSPACE_SUNBIRD, Constants.TABLE_SCORM_VALIDATION_STATUS, keyMap, null, 1);
 
         if (records.isEmpty()) {

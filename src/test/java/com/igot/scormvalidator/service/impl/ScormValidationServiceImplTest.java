@@ -1,12 +1,12 @@
 package com.igot.scormvalidator.service.impl;
 
-import com.igot.scormvalidator.authentication.util.AccessTokenValidator;
 import com.igot.scormvalidator.content.ContentInfoService;
 import com.igot.scormvalidator.producer.Producer;
-import com.igot.scormvalidator.transactional.cassandrautils.CassandraOperation;
 import com.igot.scormvalidator.util.ApiResponse;
 import com.igot.scormvalidator.util.Constants;
 import com.igot.scormvalidator.util.ScormValidatorServerProperties;
+import org.igot.common.auth.AccessTokenValidator;
+import org.igot.common.cassandra.CassandraOperation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -181,13 +181,13 @@ class ScormValidationServiceImplTest {
         ApiResponse response = service.getValidationStatus(RESOURCE_ID, USER_AUTH_TOKEN);
 
         assertEquals(HttpStatus.UNAUTHORIZED, response.getResponseCode());
-        verify(cassandraOperation, never()).getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), any(), anyInt());
+        verify(cassandraOperation, never()).getRecordsByProperties(anyString(), anyString(), anyMap(), any(), anyInt());
     }
 
     @Test
     void getValidationStatusReturnsNotFoundWhenNoRecords() {
         mockValidUser();
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), any(), anyInt()))
+        when(cassandraOperation.getRecordsByProperties(anyString(), anyString(), anyMap(), any(), anyInt()))
                 .thenReturn(Collections.emptyList());
 
         ApiResponse response = service.getValidationStatus(RESOURCE_ID, USER_AUTH_TOKEN);
@@ -202,7 +202,7 @@ class ScormValidationServiceImplTest {
         record.put(Constants.RESOURCE_ID, RESOURCE_ID);
         record.put(Constants.STATUS, Constants.STATUS_STARTED);
         List<Map<String, Object>> records = List.of(record);
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        when(cassandraOperation.getRecordsByProperties(
                 eq(Constants.KEYSPACE_SUNBIRD), eq(Constants.TABLE_SCORM_VALIDATION_STATUS), anyMap(), any(), eq(1)))
                 .thenReturn(records);
 
@@ -213,14 +213,14 @@ class ScormValidationServiceImplTest {
         assertEquals(Constants.STATUS_STARTED, response.get(Constants.STATUS));
     }
 
-    private ApiResponse successResponse() {
-        ApiResponse response = new ApiResponse();
+    private org.igot.common.ApiResponse successResponse() {
+        org.igot.common.ApiResponse response = new org.igot.common.ApiResponse();
         response.put(Constants.RESPONSE, Constants.SUCCESS);
         return response;
     }
 
-    private ApiResponse failureResponse() {
-        ApiResponse response = new ApiResponse();
+    private org.igot.common.ApiResponse failureResponse() {
+        org.igot.common.ApiResponse response = new org.igot.common.ApiResponse();
         response.put(Constants.RESPONSE, "failed");
         return response;
     }

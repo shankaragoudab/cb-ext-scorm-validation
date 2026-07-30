@@ -2,18 +2,17 @@ package com.igot.scormvalidator.consumer;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.igot.scormvalidator.transactional.cassandrautils.CassandraOperation;
-import com.igot.scormvalidator.util.ApiResponse;
 import com.igot.scormvalidator.util.Constants;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.igot.common.cassandra.CassandraOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -82,7 +81,7 @@ public class ScormValidationConsumer {
     private void updateStatus(String resourceId, String status, String errorReason) {
         Map<String, Object> updateAttributes = new HashMap<>();
         updateAttributes.put(Constants.STATUS, status);
-        updateAttributes.put(Constants.UPDATED_AT, new Timestamp(System.currentTimeMillis()));
+        updateAttributes.put(Constants.UPDATED_AT, Instant.now().toString());
         if (errorReason != null) {
             updateAttributes.put(Constants.ERROR_REASON, errorReason);
         }
@@ -90,7 +89,7 @@ public class ScormValidationConsumer {
         Map<String, Object> keyMap = new HashMap<>();
         keyMap.put(Constants.RESOURCE_ID, resourceId);
 
-        ApiResponse response = cassandraOperation.updateRecord(
+        Map<String, Object> response = cassandraOperation.updateRecord(
                 Constants.KEYSPACE_SUNBIRD, Constants.TABLE_SCORM_VALIDATION_STATUS, updateAttributes, keyMap);
         if (!Constants.SUCCESS.equalsIgnoreCase((String) response.get(Constants.RESPONSE))) {
             logger.error("ScormValidationConsumer: failed to update status={} for resourceId={}", status, resourceId);
