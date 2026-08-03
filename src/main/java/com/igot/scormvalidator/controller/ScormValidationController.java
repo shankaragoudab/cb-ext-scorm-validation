@@ -5,8 +5,6 @@ import com.igot.scormvalidator.util.ApiResponse;
 import com.igot.scormvalidator.util.Constants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -16,25 +14,27 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/v1/scorm")
+@RequestMapping("/scorm/v1")
 @RequiredArgsConstructor
 public class ScormValidationController {
 
     private final ScormValidationService scormValidationService;
 
+    @SuppressWarnings("unchecked")
     @PostMapping("/validate")
     public ResponseEntity<ApiResponse> validateScormContent(
-            @RequestBody Map<String, Object> request,
+            @RequestBody Map<String, Object> requestBody,
             @RequestHeader(name = Constants.X_AUTH_TOKEN, required = true) String userAuthToken) {
+        Map<String, Object> request = (Map<String, Object>) requestBody.getOrDefault(Constants.REQUEST, Map.of());
         ApiResponse response = scormValidationService.initiateValidation(request, userAuthToken);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 
-    @GetMapping("/getvalidationStatus/{resourceId}")
+    @PostMapping("/status")
     public ResponseEntity<ApiResponse> getValidationStatus(
-            @PathVariable String resourceId,
+            @RequestBody Map<String, Object> request,
             @RequestHeader(name = Constants.X_AUTH_TOKEN, required = true) String userAuthToken) {
-        ApiResponse response = scormValidationService.getValidationStatus(resourceId, userAuthToken);
+        ApiResponse response = scormValidationService.getValidationStatus(request, userAuthToken);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 }

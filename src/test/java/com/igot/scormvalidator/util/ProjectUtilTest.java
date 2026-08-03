@@ -15,8 +15,7 @@ class ProjectUtilTest {
         assertEquals("api.scorm.validate", response.getId());
         assertEquals(Constants.API_VERSION_1, response.getVer());
         assertEquals(HttpStatus.OK, response.getResponseCode());
-        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
-        assertNotNull(response.getParams().getResMsgId());
+        assertEquals(Constants.SUCCESS, response.get(Constants.STATUS));
         assertNotNull(response.getTs());
     }
 
@@ -27,7 +26,7 @@ class ProjectUtilTest {
         ProjectUtil.errorResponse(response, "boom", HttpStatus.BAD_REQUEST);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getParams().getStatus());
-        assertEquals("boom", response.getParams().getErrMsg());
+        assertEquals(Constants.FAILED, response.get(Constants.STATUS));
+        assertEquals("boom", response.get(Constants.ERROR_MESSAGE));
     }
 }

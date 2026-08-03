@@ -4,6 +4,9 @@ import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * Centralized {@code @Value}-backed configuration, mirroring
  * org.sunbird.common.util.CbExtServerProperties, so property keys live in one
@@ -21,4 +24,14 @@ public class ScormValidatorServerProperties {
 
     @Value("${content-read-endpoint}")
     private String contentReadEndpoint;
+
+    @Value("${scorm.validation.supported.mime-types}")
+    private String supportedMimeTypesRaw;
+
+    public List<String> getSupportedMimeTypes() {
+        return Arrays.stream(supportedMimeTypesRaw.split(","))
+                .map(String::trim)
+                .filter(mimeType -> !mimeType.isEmpty())
+                .toList();
+    }
 }

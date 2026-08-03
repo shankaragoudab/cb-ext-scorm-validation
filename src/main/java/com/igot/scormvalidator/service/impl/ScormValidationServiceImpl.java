@@ -39,25 +39,53 @@ public class ScormValidationServiceImpl implements ScormValidationService {
     public ApiResponse initiateValidation(Map<String, Object> request, String userAuthToken) {
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_SCORM_VALIDATE);
 
+        if (MapUtils.isEmpty(request)) {
+            ProjectUtil.errorResponse(response, Constants.MISSING_REQUEST_BODY, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+
         String userId = accessTokenValidator.fetchUserIdFromAccessToken(userAuthToken);
         if (StringUtils.isBlank(userId)) {
             ProjectUtil.errorResponse(response, Constants.INVALID_AUTH_TOKEN, HttpStatus.UNAUTHORIZED);
             return response;
         }
 
-        String resourceId = (String) request.get(Constants.RESOURCE_ID);
-        if (StringUtils.isBlank(resourceId)) {
-            ProjectUtil.errorResponse(response, Constants.MISSING_REQUIRED_FIELDS, HttpStatus.BAD_REQUEST);
+        String contentId = (String) request.get(Constants.CONTENT_ID);
+        if (StringUtils.isBlank(contentId)) {
+            ProjectUtil.errorResponse(response, Constants.MISSING_CONTENT_ID, HttpStatus.BAD_REQUEST);
             return response;
         }
 
-        Map<String, Object> content = contentInfoService.readContent(resourceId);
-        if (MapUtils.isEmpty(content)) {
+        String resourceId = (String) request.get(Constants.RESOURCE_ID);
+        if (StringUtils.isBlank(resourceId)) {
+            ProjectUtil.errorResponse(response, Constants.MISSING_RESOURCE_ID, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+
+        Map<String, Object> parentContent = contentInfoService.readContent(contentId);
+        if (MapUtils.isEmpty(parentContent)) {
+            ProjectUtil.errorResponse(response, Constants.CONTENT_NOT_FOUND + contentId, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+
+        if (!isResourcePartOfContent(parentContent, resourceId)) {
+            ProjectUtil.errorResponse(response, Constants.RESOURCE_NOT_PART_OF_CONTENT + resourceId, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+
+        Map<String, Object> resourceContent = contentInfoService.readContent(resourceId);
+        if (MapUtils.isEmpty(resourceContent)) {
             ProjectUtil.errorResponse(response, Constants.CONTENT_NOT_FOUND + resourceId, HttpStatus.BAD_REQUEST);
             return response;
         }
 
-        String artifactUrl = (String) content.get(Constants.ARTIFACT_URL);
+        String mimeType = (String) resourceContent.get(Constants.MIME_TYPE);
+        if (!serverProperties.getSupportedMimeTypes().contains(mimeType)) {
+            ProjectUtil.errorResponse(response, Constants.UNSUPPORTED_MIME_TYPE + resourceId, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+
+        String artifactUrl = (String) resourceContent.get(Constants.ARTIFACT_URL);
         if (StringUtils.isBlank(artifactUrl)) {
             ProjectUtil.errorResponse(response, Constants.ARTIFACT_URL_NOT_FOUND + resourceId, HttpStatus.BAD_REQUEST);
             return response;
@@ -69,6 +97,7 @@ public class ScormValidationServiceImpl implements ScormValidationService {
 
         Map<String, Object> trackingRecord = new HashMap<>();
         trackingRecord.put(Constants.VALIDATION_ID, validationId);
+        trackingRecord.put(Constants.CONTENT_ID, contentId);
         trackingRecord.put(Constants.RESOURCE_ID, resourceId);
         trackingRecord.put(Constants.FILE_NAME, fileName);
         trackingRecord.put(Constants.ARTIFACT_URL, artifactUrl);
@@ -91,9 +120,30 @@ public class ScormValidationServiceImpl implements ScormValidationService {
         response.setResponseCode(HttpStatus.ACCEPTED);
         response.put(Constants.VALIDATION_ID, validationId);
         response.put(Constants.STATUS, Constants.STATUS_STARTED);
+        response.put(Constants.CONTENT_ID, contentId);
         response.put(Constants.RESOURCE_ID, resourceId);
         response.put(Constants.CREATED_AT, now);
         return response;
+    }
+
+    /**
+     * A content that isn't a collection may have no {@code leafNodes} field at all (or a
+     * non-list/empty value) — in that case there is nothing to match {@code resourceId} against,
+     * so membership fails just as if the list existed but didn't contain it.
+     */
+    @SuppressWarnings("unchecked")
+    private boolean isResourcePartOfContent(Map<String, Object> parentContent, String resourceId) {
+        Object leafNodesObj = parentContent.get(Constants.LEAF_NODES);
+        if (!(leafNodesObj instanceof List) || ((List<Object>) leafNodesObj).isEmpty()) {
+            return false;
+        }
+        List<Object> leafNodes = (List<Object>) leafNodesObj;
+        for (Object leafNode : leafNodes) {
+            if (String.valueOf(leafNode).equals(resourceId)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String extractFileName(String artifactUrl) {
@@ -106,8 +156,18 @@ public class ScormValidationServiceImpl implements ScormValidationService {
         return slashIdx >= 0 ? path.substring(slashIdx + 1) : path;
     }
 
+    /**
+     * Publishes only the identifiers the consumer needs to look the record back up in Cassandra
+     * (contentId/resourceId/validationId) plus trace/event metadata — not the full tracking
+     * record. The consumer re-reads the current row (artifactUrl, retry count, etc.) from
+     * Cassandra when it picks the event up, so there's no need to duplicate that data onto the
+     * Kafka message.
+     */
     private void publishValidationRequestedEvent(Map<String, Object> trackingRecord) {
-        Map<String, Object> event = new HashMap<>(trackingRecord);
+        Map<String, Object> event = new HashMap<>();
+        event.put(Constants.CONTENT_ID, trackingRecord.get(Constants.CONTENT_ID));
+        event.put(Constants.RESOURCE_ID, trackingRecord.get(Constants.RESOURCE_ID));
+        event.put(Constants.VALIDATION_ID, trackingRecord.get(Constants.VALIDATION_ID));
         event.put(Constants.EVENT_TYPE, Constants.EVENT_TYPE_SCORM_VALIDATION_REQUESTED);
         event.put(Constants.RESOURCE_TYPE, Constants.RESOURCE_TYPE_COURSE);
         event.put(Constants.TRACE_ID, UUID.randomUUID().toString());
@@ -115,7 +175,7 @@ public class ScormValidationServiceImpl implements ScormValidationService {
     }
 
     @Override
-    public ApiResponse getValidationStatus(String resourceId, String userAuthToken) {
+    public ApiResponse getValidationStatus(Map<String, Object> request, String userAuthToken) {
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_SCORM_VALIDATE_STATUS);
 
         String userId = accessTokenValidator.fetchUserIdFromAccessToken(userAuthToken);
@@ -124,18 +184,31 @@ public class ScormValidationServiceImpl implements ScormValidationService {
             return response;
         }
 
-        Map<String, Object> keyMap = new HashMap<>();
-        keyMap.put(Constants.RESOURCE_ID, resourceId);
-        List<Map<String, Object>> records = cassandraOperation.getRecordsByProperties(
-                Constants.KEYSPACE_SUNBIRD, Constants.TABLE_SCORM_VALIDATION_STATUS, keyMap, null, 1);
-
-        if (records.isEmpty()) {
-            ProjectUtil.errorResponse(response, Constants.VALIDATION_NOT_FOUND, HttpStatus.NOT_FOUND);
+        String contentId = (String) request.get(Constants.CONTENT_ID);
+        if (StringUtils.isBlank(contentId)) {
+            ProjectUtil.errorResponse(response, Constants.MISSING_CONTENT_ID, HttpStatus.BAD_REQUEST);
             return response;
         }
 
+        String resourceId = (String) request.get(Constants.RESOURCE_ID);
+        Map<String, Object> keyMap = new HashMap<>();
+        keyMap.put(Constants.CONTENT_ID, contentId);
+        Integer limit = null;
+        if (StringUtils.isNotBlank(resourceId)) {
+            keyMap.put(Constants.RESOURCE_ID, resourceId);
+            limit = 1;
+        }
+
+        List<Map<String, Object>> records = cassandraOperation.getRecordsByProperties(
+                Constants.KEYSPACE_SUNBIRD, Constants.TABLE_SCORM_VALIDATION_STATUS, keyMap, null, limit);
+
+        if (StringUtils.isNotBlank(resourceId) && records.isEmpty()) {
+            ProjectUtil.errorResponse(response, Constants.VALIDATION_NOT_FOUND, HttpStatus.NOT_FOUND);
+            return response;
+        }
         response.setResponseCode(HttpStatus.OK);
-        response.getResult().putAll(records.get(0));
+        response.put(Constants.CONTENT_ID, contentId);
+        response.put(Constants.RESOURCES, records);
         return response;
     }
 }
