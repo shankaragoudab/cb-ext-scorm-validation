@@ -13,10 +13,11 @@ RUN apt-get update \
         xz-utils
 
 
-COPY cb-ext-scorm-validation-0.0.1-SNAPSHOT.jar /opt/
+#COPY cb-ext-scorm-validation-0.0.1-SNAPSHOT.jar /opt/
+COPY scormvalidator-0.0.1-SNAPSHOT.jar /opt/
 RUN chown -R appuser:appuser /opt
 USER appuser
 WORKDIR /opt
 
 #HEALTHCHECK --interval=30s --timeout=30s CMD curl --fail http://localhost:7001/actuator/health || exit 1
-CMD ["/bin/bash", "-c", "java -XX:+PrintFlagsFinal $JAVA_OPTIONS -XX:+UnlockExperimentalVMOptions -jar /opt/cb-ext-scorm-validation-0.0.1-SNAPSHOT.jar"]
+CMD ["/bin/bash", "-c", "java -XX:+PrintFlagsFinal $JAVA_OPTIONS -XX:+UnlockExperimentalVMOptions -jar /opt/scormvalidator-0.0.1-SNAPSHOT.jar"]
