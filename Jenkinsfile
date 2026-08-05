@@ -30,7 +30,7 @@ node() {
         stage('docker-pre-build') {
             sh '''
 	    docker build -f ./Dockerfile.build -t $docker_pre_build .
-	    docker run --name $docker_pre_build $docker_pre_build:latest && docker cp $docker_pre_build:/opt/target/scormvalidator-0.0.1-SNAPSHOT.jar .
+	    docker run --name $docker_pre_build $docker_pre_build:latest && docker cp $docker_pre_build:/opt/target/cb-ext-scorm-validation-0.0.1-SNAPSHOT.jar .
 	    sleep 2
 	    docker rm -f $docker_pre_build
 	    docker rmi -f $docker_pre_build
