@@ -59,4 +59,8 @@ public class Constants {
     public static final String RESOURCE_NOT_PART_OF_CONTENT = "resourceId is not part of the content's childNodes: ";
     public static final String UNSUPPORTED_MIME_TYPE = "Unsupported mimeType for resourceId: ";
     public static final String PRIMARY_CATEGORY = "primaryCategory";
+    public static final String CONTENT_PATH_SEGMENT = "content/";
+    public static final String ARTIFACT_URL_NO_PATH = "artifactUrl has no path to derive an object key from: ";
+    public static final String ARTIFACT_URL_NO_CONTENT_SEGMENT = "artifactUrl does not contain a '"
+            + CONTENT_PATH_SEGMENT + "' segment to derive the object key from: ";
 }

@@ -43,9 +43,6 @@ public class ScormValidationConsumer {
     /** Matches the local temp-download path (host-specific and ephemeral) so it can be stripped from errorReason. */
     private static final Pattern ABSOLUTE_PATH_PATTERN = Pattern.compile("\\S*/tmp/\\S+");
 
-    /** The path segment marking the start of the actual object key inside the configured bucket. */
-    private static final String CONTENT_PATH_SEGMENT = "content/";
-
     private final CassandraOperation cassandraOperation;
     private final StorageService storageService;
     private final ScormPackageProcessor scormPackageProcessor;
@@ -243,13 +240,12 @@ public class ScormValidationConsumer {
             throw new IllegalStateException("Unable to parse artifactUrl: " + artifactUrl, e);
         }
         if (StringUtils.isBlank(uriPath)) {
-            throw new IllegalStateException("artifactUrl has no path to derive an object key from: " + artifactUrl);
+            throw new IllegalStateException(Constants.ARTIFACT_URL_NO_PATH + artifactUrl);
         }
 
-        int contentIdx = uriPath.indexOf(CONTENT_PATH_SEGMENT);
+        int contentIdx = uriPath.indexOf(Constants.CONTENT_PATH_SEGMENT);
         if (contentIdx < 0) {
-            throw new IllegalStateException("artifactUrl does not contain a '" + CONTENT_PATH_SEGMENT
-                    + "' segment to derive the object key from: " + artifactUrl);
+            throw new IllegalStateException(Constants.ARTIFACT_URL_NO_CONTENT_SEGMENT + artifactUrl);
         }
         String objectKey = uriPath.substring(contentIdx);
         return new ArtifactLocation(serverProperties.getScormValidationContainerName(), objectKey);
