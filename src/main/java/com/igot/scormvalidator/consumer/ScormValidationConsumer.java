@@ -7,6 +7,7 @@ import com.igot.scormvalidator.scorm.model.ScormProcessingResult;
 import com.igot.scormvalidator.scorm.model.ValidationResult;
 import com.igot.scormvalidator.storage.service.StorageService;
 import com.igot.scormvalidator.util.Constants;
+import com.igot.scormvalidator.util.ScormValidatorServerProperties;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -42,10 +43,14 @@ public class ScormValidationConsumer {
     /** Matches the local temp-download path (host-specific and ephemeral) so it can be stripped from errorReason. */
     private static final Pattern ABSOLUTE_PATH_PATTERN = Pattern.compile("\\S*/tmp/\\S+");
 
+    /** The path segment marking the start of the actual object key inside the configured bucket. */
+    private static final String CONTENT_PATH_SEGMENT = "content/";
+
     private final CassandraOperation cassandraOperation;
     private final StorageService storageService;
     private final ScormPackageProcessor scormPackageProcessor;
     private final ObjectMapper objectMapper;
+    private final ScormValidatorServerProperties serverProperties;
 
     @KafkaListener(topics = "${kafka.scorm.validation.request.topic}",
             groupId = "${kafka.scorm.validation.request.topic.group}")
@@ -218,8 +223,11 @@ public class ScormValidationConsumer {
     }
 
     /**
-     * Parses a full artifact URL of the form {@code https://<host>/<container>/<objectKey...>}
-     * into a cloud-storage container/bucket and object key.
+     * Resolves an artifact URL to a cloud-storage location. The URL's host/leading path segments
+     * (e.g. a CDN domain, a proxy path like {@code content-store}) are not the actual bucket —
+     * the real bucket is the configured {@code scorm.validation.container.name}. The object key
+     * is the URL path starting from its {@code content/} segment, since that's how objects are
+     * actually laid out in the bucket (e.g. {@code content/<contentId>/artifact/<file>.zip}).
      */
     private ArtifactLocation parseArtifactLocation(String artifactUrl) {
         String path = artifactUrl;
@@ -235,18 +243,16 @@ public class ScormValidationConsumer {
             throw new IllegalStateException("Unable to parse artifactUrl: " + artifactUrl, e);
         }
         if (StringUtils.isBlank(uriPath)) {
-            throw new IllegalStateException("artifactUrl has no path to derive container/object key from: " + artifactUrl);
+            throw new IllegalStateException("artifactUrl has no path to derive an object key from: " + artifactUrl);
         }
-        if (uriPath.startsWith("/")) {
-            uriPath = uriPath.substring(1);
+
+        int contentIdx = uriPath.indexOf(CONTENT_PATH_SEGMENT);
+        if (contentIdx < 0) {
+            throw new IllegalStateException("artifactUrl does not contain a '" + CONTENT_PATH_SEGMENT
+                    + "' segment to derive the object key from: " + artifactUrl);
         }
-        int slashIdx = uriPath.indexOf('/');
-        if (slashIdx < 0) {
-            throw new IllegalStateException("artifactUrl does not contain a container/object-key segment: " + artifactUrl);
-        }
-        String container = uriPath.substring(0, slashIdx);
-        String objectKey = uriPath.substring(slashIdx + 1);
-        return new ArtifactLocation(container, objectKey);
+        String objectKey = uriPath.substring(contentIdx);
+        return new ArtifactLocation(serverProperties.getScormValidationContainerName(), objectKey);
     }
 
     /** A resolved cloud-storage location: bucket/container name plus the full object key. */

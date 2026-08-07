@@ -7,6 +7,7 @@ import com.igot.scormvalidator.scorm.model.ScormProcessingResult;
 import com.igot.scormvalidator.scorm.model.ValidationResult;
 import com.igot.scormvalidator.storage.service.StorageService;
 import com.igot.scormvalidator.util.Constants;
+import com.igot.scormvalidator.util.ScormValidatorServerProperties;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.igot.common.cassandra.CassandraOperation;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +35,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -56,8 +58,12 @@ class ScormValidationConsumerTest {
     private static final String CONTENT_ID = "content-1";
     private static final String EVENT = "{\"resourceId\":\"" + RESOURCE_ID + "\",\"contentId\":\"" + CONTENT_ID
             + "\",\"validationId\":\"v-1\"}";
+    // Deliberately modeled on the real production shape: a CDN/proxy host and path
+    // ("content-store") that is NOT the actual bucket name. The bucket comes from config
+    // (serverProperties.getScormValidationContainerName(), stubbed to "igot" below); the object
+    // key is derived from the URL's "content/" segment onward.
     private static final String ARTIFACT_URL =
-            "https://storage.googleapis.com/igot/content/do_123/artifact/do_123_v1.zip";
+            "https://portal.dev.karmayogibharat.net/content-store/content/do_123/artifact/do_123_v1.zip";
 
     @Mock
     private CassandraOperation cassandraOperation;
@@ -68,12 +74,16 @@ class ScormValidationConsumerTest {
     @Mock
     private ScormPackageProcessor scormPackageProcessor;
 
+    @Mock
+    private ScormValidatorServerProperties serverProperties;
+
     private ScormValidationConsumer consumer;
 
     @BeforeEach
     void setUp() {
+        lenient().when(serverProperties.getScormValidationContainerName()).thenReturn("igot");
         consumer = new ScormValidationConsumer(
-                cassandraOperation, storageService, scormPackageProcessor, new ObjectMapper());
+                cassandraOperation, storageService, scormPackageProcessor, new ObjectMapper(), serverProperties);
     }
 
     @Test
@@ -182,10 +192,24 @@ class ScormValidationConsumerTest {
         assertEquals(Constants.STATUS_FAILED, updates.get(1).get(Constants.STATUS));
         assertEquals("download failed", updates.get(1).get(Constants.ERROR_REASON));
 
-        // The container/object key must be parsed straight out of the artifactUrl path, e.g.
-        // https://storage.googleapis.com/igot/content/do_123/artifact/do_123_v1.zip ->
-        // container "igot", key "content/do_123/artifact/do_123_v1.zip".
+        // The bucket comes from config (not the URL's host/CDN path), and the object key is
+        // everything in the URL path from "content/" onward.
         verify(storageService).downloadFile("content/do_123/artifact/do_123_v1.zip", "igot");
+    }
+
+    @Test
+    void initiateScormValidationProcessMarksFailedWhenArtifactUrlHasNoContentSegment() {
+        when(cassandraOperation.updateRecord(anyString(), anyString(), anyMap(), anyMap())).thenReturn(successResponse());
+        stubTrackingRecord("https://portal.dev.karmayogibharat.net/other-bucket/file.zip");
+
+        consumer.initiateScormValidationProcess(EVENT);
+
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(cassandraOperation, times(2)).updateRecord(anyString(), anyString(), captor.capture(), anyMap());
+        List<Map<String, Object>> updates = captor.getAllValues();
+
+        assertEquals(Constants.STATUS_FAILED, updates.get(1).get(Constants.STATUS));
+        assertTrue(((String) updates.get(1).get(Constants.ERROR_REASON)).contains("content/"));
     }
 
     @Test

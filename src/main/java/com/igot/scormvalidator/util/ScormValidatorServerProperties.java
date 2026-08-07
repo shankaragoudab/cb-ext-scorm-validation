@@ -28,6 +28,9 @@ public class ScormValidatorServerProperties {
     @Value("${scorm.validation.supported.mime-types}")
     private String supportedMimeTypesRaw;
 
+    @Value("${scorm.validation.container.name}")
+    private String scormValidationContainerName;
+
     public List<String> getSupportedMimeTypes() {
         return Arrays.stream(supportedMimeTypesRaw.split(","))
                 .map(String::trim)
