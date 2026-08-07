@@ -43,6 +43,7 @@ class ScormValidationServiceImplTest {
     private static final String CONTENT_ID = "do_parent_123";
     private static final String RESOURCE_ID = "do_123";
     private static final String SUPPORTED_MIME_TYPE = "application/vnd.ekstep.html-archive";
+    private static final String CONTENT_TYPE_COURSE = "Course";
 
     @Mock
     private AccessTokenValidator accessTokenValidator;
@@ -78,9 +79,10 @@ class ScormValidationServiceImplTest {
         return request;
     }
 
-    private Map<String, Object> parentContentWithLeafNodes(String... leafNodes) {
+    private Map<String, Object> parentContentWithChildNodes(String... childNodes) {
         Map<String, Object> content = new HashMap<>();
-        content.put(Constants.LEAF_NODES, new ArrayList<>(List.of(leafNodes)));
+        content.put(Constants.PRIMARY_CATEGORY, CONTENT_TYPE_COURSE);
+        content.put(Constants.CHILD_NODES, new ArrayList<>(List.of(childNodes)));
         return content;
     }
 
@@ -148,7 +150,7 @@ class ScormValidationServiceImplTest {
     void initiateValidationReturnsBadRequestWhenResourceIdNotInLeafNodesList() {
         mockValidUser();
         when(contentInfoService.readContent(CONTENT_ID))
-                .thenReturn(parentContentWithLeafNodes("do_other_1", "do_other_2"));
+                .thenReturn(parentContentWithChildNodes("do_other_1", "do_other_2"));
 
         ApiResponse response = service.initiateValidation(requestWithIds(CONTENT_ID, RESOURCE_ID), USER_AUTH_TOKEN);
 
@@ -176,7 +178,7 @@ class ScormValidationServiceImplTest {
     @Test
     void initiateValidationReturnsBadRequestWhenResourceContentNotFound() {
         mockValidUser();
-        when(contentInfoService.readContent(CONTENT_ID)).thenReturn(parentContentWithLeafNodes(RESOURCE_ID));
+        when(contentInfoService.readContent(CONTENT_ID)).thenReturn(parentContentWithChildNodes(RESOURCE_ID));
         when(contentInfoService.readContent(RESOURCE_ID)).thenReturn(Collections.emptyMap());
 
         ApiResponse response = service.initiateValidation(requestWithIds(CONTENT_ID, RESOURCE_ID), USER_AUTH_TOKEN);
@@ -188,7 +190,7 @@ class ScormValidationServiceImplTest {
     @Test
     void initiateValidationReturnsBadRequestWhenMimeTypeUnsupported() {
         mockValidUser();
-        when(contentInfoService.readContent(CONTENT_ID)).thenReturn(parentContentWithLeafNodes(RESOURCE_ID));
+        when(contentInfoService.readContent(CONTENT_ID)).thenReturn(parentContentWithChildNodes(RESOURCE_ID));
         Map<String, Object> resourceContent = new HashMap<>();
         resourceContent.put(Constants.MIME_TYPE, "application/pdf");
         resourceContent.put(Constants.ARTIFACT_URL, "https://example.com/file.pdf");
@@ -204,7 +206,7 @@ class ScormValidationServiceImplTest {
     @Test
     void initiateValidationReturnsBadRequestWhenArtifactUrlMissing() {
         mockValidUser();
-        when(contentInfoService.readContent(CONTENT_ID)).thenReturn(parentContentWithLeafNodes(RESOURCE_ID));
+        when(contentInfoService.readContent(CONTENT_ID)).thenReturn(parentContentWithChildNodes(RESOURCE_ID));
         Map<String, Object> resourceContent = new HashMap<>();
         resourceContent.put(Constants.MIME_TYPE, SUPPORTED_MIME_TYPE);
         when(contentInfoService.readContent(RESOURCE_ID)).thenReturn(resourceContent);
@@ -218,7 +220,7 @@ class ScormValidationServiceImplTest {
     @Test
     void initiateValidationPersistsRecordAndPublishesEventOnSuccess() {
         mockValidUser();
-        when(contentInfoService.readContent(CONTENT_ID)).thenReturn(parentContentWithLeafNodes(RESOURCE_ID));
+        when(contentInfoService.readContent(CONTENT_ID)).thenReturn(parentContentWithChildNodes(RESOURCE_ID));
         when(contentInfoService.readContent(RESOURCE_ID))
                 .thenReturn(resourceContentWithArtifact("https://example.com/path/course.zip?token=abc"));
         when(cassandraOperation.insertRecord(anyString(), anyString(), anyMap())).thenReturn(successResponse());
@@ -246,7 +248,7 @@ class ScormValidationServiceImplTest {
         verify(kafkaProducer).pushWithKey(eq("scorm.validation.requested"), eventCaptor.capture(), eq(RESOURCE_ID));
         Map<String, Object> event = eventCaptor.getValue();
         assertEquals(Constants.EVENT_TYPE_SCORM_VALIDATION_REQUESTED, event.get(Constants.EVENT_TYPE));
-        assertEquals(Constants.RESOURCE_TYPE_COURSE, event.get(Constants.RESOURCE_TYPE));
+        assertEquals(CONTENT_TYPE_COURSE, event.get(Constants.CONTENT_TYPE));
         assertNotNull(event.get(Constants.TRACE_ID));
         assertEquals(CONTENT_ID, event.get(Constants.CONTENT_ID));
         assertEquals(RESOURCE_ID, event.get(Constants.RESOURCE_ID));
@@ -255,7 +257,7 @@ class ScormValidationServiceImplTest {
         // fileName, status, retry count, etc.) straight from Cassandra, so none of that should be
         // duplicated onto the Kafka message.
         assertEquals(6, event.size(),
-                "event should only contain contentId, resourceId, validationId, eventType, resourceType and traceId");
+                "event should only contain contentId, resourceId, validationId, eventType, contentType and traceId");
         assertFalse(event.containsKey(Constants.ARTIFACT_URL));
         assertFalse(event.containsKey(Constants.FILE_NAME));
     }
@@ -263,7 +265,7 @@ class ScormValidationServiceImplTest {
     @Test
     void initiateValidationExtractsFileNameWithoutQueryString() {
         mockValidUser();
-        when(contentInfoService.readContent(CONTENT_ID)).thenReturn(parentContentWithLeafNodes(RESOURCE_ID));
+        when(contentInfoService.readContent(CONTENT_ID)).thenReturn(parentContentWithChildNodes(RESOURCE_ID));
         when(contentInfoService.readContent(RESOURCE_ID))
                 .thenReturn(resourceContentWithArtifact("https://example.com/path/to/artifact.zip"));
         when(cassandraOperation.insertRecord(anyString(), anyString(), anyMap())).thenReturn(successResponse());
@@ -279,7 +281,7 @@ class ScormValidationServiceImplTest {
     @Test
     void initiateValidationReturnsInternalServerErrorWhenInsertFails() {
         mockValidUser();
-        when(contentInfoService.readContent(CONTENT_ID)).thenReturn(parentContentWithLeafNodes(RESOURCE_ID));
+        when(contentInfoService.readContent(CONTENT_ID)).thenReturn(parentContentWithChildNodes(RESOURCE_ID));
         when(contentInfoService.readContent(RESOURCE_ID))
                 .thenReturn(resourceContentWithArtifact("https://example.com/course.zip"));
         when(cassandraOperation.insertRecord(anyString(), anyString(), anyMap())).thenReturn(failureResponse());

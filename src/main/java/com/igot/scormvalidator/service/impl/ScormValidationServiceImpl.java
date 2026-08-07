@@ -91,6 +91,7 @@ public class ScormValidationServiceImpl implements ScormValidationService {
             return response;
         }
         String fileName = extractFileName(artifactUrl);
+        String contentType = (String) parentContent.get(Constants.PRIMARY_CATEGORY);
 
         String validationId = UUID.randomUUID().toString();
         String now = Instant.now().toString();
@@ -115,7 +116,7 @@ public class ScormValidationServiceImpl implements ScormValidationService {
             return response;
         }
 
-        publishValidationRequestedEvent(trackingRecord);
+        publishValidationRequestedEvent(trackingRecord, contentType);
 
         response.setResponseCode(HttpStatus.ACCEPTED);
         response.put(Constants.VALIDATION_ID, validationId);
@@ -127,19 +128,19 @@ public class ScormValidationServiceImpl implements ScormValidationService {
     }
 
     /**
-     * A content that isn't a collection may have no {@code leafNodes} field at all (or a
+     * A content that isn't a collection may have no {@code childNodes} field at all (or a
      * non-list/empty value) — in that case there is nothing to match {@code resourceId} against,
      * so membership fails just as if the list existed but didn't contain it.
      */
     @SuppressWarnings("unchecked")
     private boolean isResourcePartOfContent(Map<String, Object> parentContent, String resourceId) {
-        Object leafNodesObj = parentContent.get(Constants.LEAF_NODES);
-        if (!(leafNodesObj instanceof List) || ((List<Object>) leafNodesObj).isEmpty()) {
+        Object childNodesObj = parentContent.get(Constants.CHILD_NODES);
+        if (!(childNodesObj instanceof List) || ((List<Object>) childNodesObj).isEmpty()) {
             return false;
         }
-        List<Object> leafNodes = (List<Object>) leafNodesObj;
-        for (Object leafNode : leafNodes) {
-            if (String.valueOf(leafNode).equals(resourceId)) {
+        List<Object> childNodes = (List<Object>) childNodesObj;
+        for (Object childNode : childNodes) {
+            if (String.valueOf(childNode).equals(resourceId)) {
                 return true;
             }
         }
@@ -163,13 +164,13 @@ public class ScormValidationServiceImpl implements ScormValidationService {
      * Cassandra when it picks the event up, so there's no need to duplicate that data onto the
      * Kafka message.
      */
-    private void publishValidationRequestedEvent(Map<String, Object> trackingRecord) {
+    private void publishValidationRequestedEvent(Map<String, Object> trackingRecord, String contentType) {
         Map<String, Object> event = new HashMap<>();
         event.put(Constants.CONTENT_ID, trackingRecord.get(Constants.CONTENT_ID));
         event.put(Constants.RESOURCE_ID, trackingRecord.get(Constants.RESOURCE_ID));
         event.put(Constants.VALIDATION_ID, trackingRecord.get(Constants.VALIDATION_ID));
         event.put(Constants.EVENT_TYPE, Constants.EVENT_TYPE_SCORM_VALIDATION_REQUESTED);
-        event.put(Constants.RESOURCE_TYPE, Constants.RESOURCE_TYPE_COURSE);
+        event.put(Constants.CONTENT_TYPE, contentType);
         event.put(Constants.TRACE_ID, UUID.randomUUID().toString());
         kafkaProducer.pushWithKey(serverProperties.getScormValidationRequestedTopic(), event, (String) trackingRecord.get(Constants.RESOURCE_ID));
     }
