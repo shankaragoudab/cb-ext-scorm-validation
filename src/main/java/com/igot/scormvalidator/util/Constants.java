@@ -31,7 +31,7 @@ public class Constants {
     public static final String RESULT = "result";
     public static final String CONTENT = "content";
     public static final String OK = "OK";
-    public static final String LEAF_NODES = "leafNodes";
+    public static final String CHILD_NODES = "childNodes";
     public static final String MIME_TYPE = "mimeType";
     public static final String STATUS_STARTED = "STARTED";
     public static final String STATUS_IN_PROGRESS = "IN_PROGRESS";
@@ -42,8 +42,7 @@ public class Constants {
     public static final String STATUS_FAILED = "FAILED";
     public static final String EVENT_TYPE = "eventType";
     public static final String EVENT_TYPE_SCORM_VALIDATION_REQUESTED = "SCORM_VALIDATION_REQUESTED";
-    public static final String RESOURCE_TYPE = "resourceType";
-    public static final String RESOURCE_TYPE_COURSE = "COURSE";
+    public static final String CONTENT_TYPE = "contentType";
     public static final String TRACE_ID = "traceId";
     public static final String RESOURCES = "resources";
     public static final String RESPONSE = "response";
@@ -57,6 +56,7 @@ public class Constants {
     public static final String MISSING_RESOURCE_ID = "resourceId is required";
     public static final String CONTENT_NOT_FOUND = "Content not found for id: ";
     public static final String ARTIFACT_URL_NOT_FOUND = "artifactUrl not available for resourceId: ";
-    public static final String RESOURCE_NOT_PART_OF_CONTENT = "resourceId is not part of the content's leafNodes: ";
+    public static final String RESOURCE_NOT_PART_OF_CONTENT = "resourceId is not part of the content's childNodes: ";
     public static final String UNSUPPORTED_MIME_TYPE = "Unsupported mimeType for resourceId: ";
+    public static final String PRIMARY_CATEGORY = "primaryCategory";
 }

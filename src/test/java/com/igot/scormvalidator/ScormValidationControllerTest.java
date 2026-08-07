@@ -59,9 +59,10 @@ class ScormValidationControllerTest {
     @MockBean
     private ContentInfoService contentInfoService;
 
-    private Map<String, Object> parentContentWithLeafNode(String resourceId) {
+    private Map<String, Object> parentContentWithChildNode(String resourceId) {
         Map<String, Object> content = new HashMap<>();
-        content.put(Constants.LEAF_NODES, List.of(resourceId));
+        content.put(Constants.PRIMARY_CATEGORY, "Course");
+        content.put(Constants.CHILD_NODES, List.of(resourceId));
         return content;
     }
 
@@ -79,7 +80,7 @@ class ScormValidationControllerTest {
         insertResponse.put(Constants.RESPONSE, Constants.SUCCESS);
         when(cassandraOperation.insertRecord(anyString(), anyString(), anyMap())).thenReturn(insertResponse);
 
-        when(contentInfoService.readContent(CONTENT_ID)).thenReturn(parentContentWithLeafNode(RESOURCE_ID));
+        when(contentInfoService.readContent(CONTENT_ID)).thenReturn(parentContentWithChildNode(RESOURCE_ID));
         when(contentInfoService.readContent(RESOURCE_ID))
                 .thenReturn(resourceContent("https://example.com/files/course.zip"));
 
